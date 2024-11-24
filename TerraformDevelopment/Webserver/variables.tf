@@ -20,3 +20,6 @@ variable "ami_id" {
   default     = "ami-07c9c7aaab42cba5a"  # Example AWS Linux AMI for eu-west-3
 }
 
+variable "html_content" {
+  default = "<html><body><h1>Welcome to Terraform Web Server</h1></body></html>"
+}

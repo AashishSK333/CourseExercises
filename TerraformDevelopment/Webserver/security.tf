@@ -73,20 +73,12 @@ resource "aws_instance" "web_instance" {
   #security_groups = [aws_security_group.web_sg.name]
   #user_data     = file("userdata.sh")
   user_data = <<EOF
-    #!/bin/bash
-    # Update the system
-    sudo yum update -y
-
-    # Install the web server (e.g., Apache)
-    sudo yum install -y httpd
-
-    # Start and enable the web server
-    sudo systemctl start httpd
-    sudo systemctl enable httpd
-
-    # Create an index.html file
-    echo "Hello, World!" > /var/www/html/index.html
-    EOF
+              #!/bin/bash
+              echo '${var.html_content}' > /var/www/html/index.html
+              yum install -y httpd
+              systemctl start httpd
+              systemctl enable httpd
+              EOF
       
   tags = {
     Name = "web_instance_${count.index}"
