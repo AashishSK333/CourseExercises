@@ -1,9 +1,9 @@
 resource "aws_instance" "ec2demo" {
-  ami = "ami-0f935a2ecd3a7bd5c"
+  ami           = "ami-0f935a2ecd3a7bd5c"
   instance_type = "t2.micro"
-  user_data = file("${path.module}/app1-install.sh")
+  user_data     = file("${path.module}/app1-install.sh")
   tags = {
-    Name = "EC2 Instance"
+    Name      = "EC2 Instance"
     Terraform = "True"
   }
 }
