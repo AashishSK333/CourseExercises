@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Order Form</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Capital Markets Trading Platform</h1>
+            <nav>
+                <ul>
+                    <li><a href="/" class="active">New Order</a></li>
+                    <li><a href="{{ portfolio_service_url }}/">View Portfolios</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main>
+            <section class="card">
+                <h2>Create New Trade Order</h2>
+                <form action="/orders" method="post">
+                    <div class="form-group">
+                        <label for="user_id">User ID:</label>
+                        <input type="text" id="user_id" name="user_id" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="symbol">Security Symbol:</label>
+                        <input type="text" id="symbol" name="symbol" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="order_type">Order Type:</label>
+                        <select id="order_type" name="order_type" required>
+                            <option value="buy">Buy</option>
+                            <option value="sell">Sell</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quantity">Quantity:</label>
+                        <input type="number" id="quantity" name="quantity" min="1" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="price">Price:</label>
+                        <input type="number" id="price" name="price" step="0.01" min="0.01" required>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Submit Order</button>
+                        <button type="reset" class="btn">Reset</button>
+                    </div>
+                </form>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2023 Capital Markets Trading Platform</p>
+        </footer>
+    </div>
+</body>
+</html>
