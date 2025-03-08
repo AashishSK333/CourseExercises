@@ -11,14 +11,15 @@ db.init_app(app)
 api = Api(app)
 CORS(app)  # Enable CORS
 
-api.add_resource(PortfolioResource, '/portfolio/<int:user_id>')
-api.add_resource(RebalanceResource, '/portfolio/rebalance')
+#api.add_resource(PortfolioResource, '/portfolio/<int:user_id>')
+#api.add_resource(RebalanceResource, '/portfolio/rebalance')
+
 
 @app.route('/health')
 def health():
     return {'status': 'healthy'}, 200
 
-'''
+
 @app.before_request
 def log_request():
     app.logger.debug(f"Request: {request.method} {request.path}")
@@ -41,8 +42,43 @@ def get_portfolio(trader_id):
         app.logger.info(f"Found {len(trades)} trades")
         
         # Process trades to calculate portfolio positions
-        position_list = []  # Define position_list
-        total_value = 0  # Define total_value
+        positions = {}
+        total_value = 0.0
+        
+        for trade in trades:
+            symbol = trade.asset_name
+            
+            if symbol not in positions:
+                positions[symbol] = {
+                    "symbol": symbol,
+                    "quantity": 0,
+                    "total_cost": 0.0
+                }
+            
+            # Update position with this trade
+            trade_quantity = float(trade.quantity)
+            trade_price = float(trade.price)
+            
+            positions[symbol]["quantity"] += trade_quantity
+            positions[symbol]["total_cost"] += trade_quantity * trade_price
+            
+            # Update total portfolio value
+            total_value += trade_quantity * trade_price
+        
+        # Calculate average price for each position
+        position_list = []
+        for symbol, position in positions.items():
+            if position["quantity"] > 0:
+                position["average_price"] = position["total_cost"] / position["quantity"]
+            else:
+                position["average_price"] = 0
+                
+            # Remove calculation field
+            del position["total_cost"]
+            position_list.append(position)
+        
+        app.logger.info(f"Calculated positions: {position_list}")
+        app.logger.info(f"Total value: {total_value}")
         
         # Format response and explicitly specify content type
         response = jsonify({
@@ -56,7 +92,7 @@ def get_portfolio(trader_id):
     except Exception as e:
         app.logger.error(f"Error calculating portfolio: {str(e)}")
         return jsonify({"error": str(e)}), 500
-'''
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5002)
