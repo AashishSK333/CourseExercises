@@ -14,8 +14,8 @@ CORS(app)  # Enable CORS
 with app.app_context():
     db.create_all()
 
-api.add_resource(TradeResource, '/trades/<int:trade_id>')
-api.add_resource(TradeListResource, '/trades')
+#api.add_resource(TradeResource, '/trades/<int:trade_id>')
+#api.add_resource(TradeListResource, '/trades')
 
 @app.route('/health')
 def health():

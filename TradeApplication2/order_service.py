@@ -28,9 +28,13 @@ orders = []
 
 @app.route('/')
 def index():
-    """Render the order form page"""
+    """Render the SPA"""
     portfolio_service_url = os.getenv("PORTFOLIO_SERVICE_URL", "http://localhost:5001")
-    return render_template('order_form.html', portfolio_service_url=portfolio_service_url)
+    # For browser use, we need external URLs
+    external_portfolio_service_url = os.getenv("PORTFOLIO_SERVICE_EXTERNAL_URL", portfolio_service_url)
+    return render_template('index.html', 
+                          order_service_url=os.getenv("ORDER_SERVICE_EXTERNAL_URL", ""),
+                          portfolio_service_url=external_portfolio_service_url)
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -39,57 +43,25 @@ def health_check():
 
 @app.route('/orders', methods=['POST'])
 def create_order():
-    app.logger.info("Received order form submission")
-    """Create a new order and update portfolio"""
+    """Create a new order and update portfolio API"""
     try:
-        if request.content_type == 'application/json':
-            order_data = request.json
-        else:
-            # Handle form submission
-            order_data = {
-                "user_id": request.form['user_id'],
-                "symbol": request.form['symbol'],
-                "order_type": request.form['order_type'],
-                "quantity": int(request.form['quantity']),
-                "price": float(request.form['price'])
-            }
+        order_data = request.json
+        app.logger.info(f"Received order: {order_data}")
         
         # Add order to local storage
         orders.append(order_data)
         
-        # Internal URL for service-to-service communication
-        portfolio_service_url = os.getenv("PORTFOLIO_SERVICE_URL", "http://localhost:5001")
-        
-        # External URL for browser redirects
-        portfolio_service_external_url = os.getenv("PORTFOLIO_SERVICE_EXTERNAL_URL", "http://localhost:5001")
-        
         # Attempt to connect to portfolio service
         try:
-            response = requests.post(f"{portfolio_service_url}/update_portfolio", json=order_data, timeout=5)
-            
-            if request.content_type == 'application/json':
-                return jsonify(response.json()), 201
-            else:
-                # Redirect to portfolio view using EXTERNAL URL
-                return redirect(f"{portfolio_service_external_url}/portfolios/view/{order_data['user_id']}")
-                
+            response = requests.post(f"{PORTFOLIO_SERVICE_URL}/update_portfolio", json=order_data, timeout=5)
+            return jsonify(response.json()), 201
         except requests.exceptions.RequestException as e:
             app.logger.error(f"Error connecting to portfolio service: {e}")
-            error_message = f"Could not connect to portfolio service: {e}"
-            
-            if request.content_type == 'application/json':
-                return jsonify({"error": error_message}), 500
-            else:
-                return render_template('error.html', error=error_message)
+            return jsonify({"error": f"Could not connect to portfolio service: {e}"}), 500
             
     except Exception as e:
         app.logger.error(f"Error processing order: {e}")
-        error_message = str(e)
-        
-        if request.content_type == 'application/json':
-            return jsonify({"error": error_message}), 400
-        else:
-            return render_template('error.html', error=error_message)
+        return jsonify({"error": str(e)}), 400
 
 @app.route('/orders', methods=['GET'])
 def get_orders():
@@ -97,7 +69,7 @@ def get_orders():
     return jsonify(orders)
 
 if __name__ == '__main__':
-    # Create templates directory if it doesn't exist
+    # Create directories if they don't exist
     os.makedirs('templates', exist_ok=True)
     os.makedirs('static', exist_ok=True)
     

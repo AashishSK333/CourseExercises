@@ -18,7 +18,6 @@ trace.get_tracer_provider().add_span_processor(span_processor)
 # Configuration
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", 8080))
-ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://localhost:5002")
 
 # In-memory storage
 portfolios = {}
@@ -39,33 +38,28 @@ def update_portfolio():
     """Update a user's portfolio with a new order"""
     try:
         order = request.json
-        app.logger.info(f"Portfolio update received: {order}")
+        app.logger.info(f"Received portfolio update: {order}")
         
-        # Validate required fields
-        required_fields = ['user_id', 'symbol', 'order_type', 'quantity', 'price']
-        missing_fields = [field for field in required_fields if field not in order]
-        
-        if missing_fields:
-            error_message = f"Missing required fields: {', '.join(missing_fields)}"
-            app.logger.error(error_message)
-            return jsonify({"error": error_message}), 400
-            
         user_id = order['user_id']
         
         if user_id not in portfolios:
             portfolios[user_id] = []
             
         portfolios[user_id].append(order)
-        app.logger.info(f"Updated portfolio for user {user_id}")
         return jsonify({"status": "portfolio updated", "user_id": user_id}), 200
         
     except Exception as e:
         app.logger.error(f"Error updating portfolio: {e}")
         return jsonify({"error": str(e)}), 400
 
+@app.route('/portfolios', methods=['GET'])
+def get_portfolios():
+    """Get all portfolios"""
+    return jsonify(portfolios)
+
 @app.route('/portfolios/<user_id>', methods=['GET'])
 def get_portfolio(user_id):
-    """Get a user's portfolio as JSON"""
+    """Get a user's portfolio"""
     portfolio = portfolios.get(user_id, [])
     return jsonify(portfolio)
 

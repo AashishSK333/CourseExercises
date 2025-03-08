@@ -75,3 +75,31 @@ my_flask_app/
 │   ├── app.js
 │   └── styles.css
 └── docker-compose.yml
+
+# Connect to postgres container
+docker exec -it <container_name_or_id> bash
+
+# Once inside the container, connect to the database
+psql -U user -d trades
+
+# Connection established
+-- List all tables
+\dt
+
+-- Show table structure
+\d trade
+
+-- Query all trades
+SELECT * FROM trade;
+
+-- Count trades
+SELECT COUNT(*) FROM trade;
+
+-- Find trades by trader_id
+SELECT * FROM trade WHERE trader_id = 1;
+
+-- Check database connection info
+\conninfo
+
+-- Exit psql
+\q
