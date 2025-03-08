@@ -3,7 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_restful import Api
 from flask_cors import CORS
 from models import Trade, db
-from resources import PortfolioResource, RebalanceResource
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://user:password@db/trades'
@@ -14,7 +13,7 @@ CORS(app)  # Enable CORS
 #api.add_resource(PortfolioResource, '/portfolio/<int:user_id>')
 #api.add_resource(RebalanceResource, '/portfolio/rebalance')
 
-
+'''
 @app.route('/health')
 def health():
     return {'status': 'healthy'}, 200
@@ -29,7 +28,7 @@ def log_response(response):
     app.logger.debug(f"Response: {response.status_code}, Content-Type: {response.content_type}")
     app.logger.debug(f"Response body: {response.get_data(as_text=True)[:200]}...")
     return response
-
+'''
 # Make sure this route exists and returns JSON
 @app.route('/portfolio/<int:trader_id>', methods=['GET'])
 def get_portfolio(trader_id):

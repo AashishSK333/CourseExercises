@@ -15,10 +15,11 @@ with app.app_context():
 
 #api.add_resource(TradeResource, '/trades/<int:trade_id>')
 #api.add_resource(TradeListResource, '/trades')
-
+'''
 @app.route('/health')
 def health():
     return {'status': 'healthy'}, 200
+'''
 
 @app.route('/trades', methods=['GET', 'POST'])
 def trades():
