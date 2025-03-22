@@ -1,0 +1,76 @@
+version: '3.8'
+services:
+  # AWS X-Ray Daemon - collects traces and forwards to AWS X-Ray service
+  xray-daemon:
+    image: amazon/aws-xray-daemon
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+    ports:
+      - "2000:2000/udp"
+      - "2000:2000/tcp"  # Add TCP port for GetSamplingRules
+    command: ["--local-mode", "--bind=0.0.0.0:2000"]  # Bind to all interfaces
+    restart: on-failure
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: trades
+      # Adding service name helps identify the database in traces
+      OTEL_SERVICE_NAME: postgres-db
+    ports:
+      - "5432:5432"
+
+  trade_service:
+    build: ./trade_service
+    ports:
+      - "5001:5001"
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_XRAY_DAEMON_ADDRESS=xray-daemon:2000  # Correct hostname
+      - OTEL_SERVICE_NAME=trade-service
+      - LOG_GROUP_NAME=/trading-app/trade-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://xray-daemon:2000
+      - OTEL_TRACES_EXPORTER=xray
+      - OTEL_METRICS_EXPORTER=none  # Disable metrics since we're only using X-Ray for traces
+      - OTEL_LOGS_EXPORTER=none     # Disable logs export via OTLP
+    depends_on:
+      - db
+      - xray-daemon
+    restart: on-failure
+
+  portfolio_service:
+    build: ./portfolio_service
+    ports:
+      - "5002:5002"
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-ap-southeast-1}
+      - AWS_XRAY_DAEMON_ADDRESS=xray-daemon:2000  # Correct hostname
+      - OTEL_SERVICE_NAME=portfolio-service
+      - LOG_GROUP_NAME=/trading-app/portfolio-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://xray-daemon:2000
+      - OTEL_TRACES_EXPORTER=xray
+      - OTEL_METRICS_EXPORTER=none
+      - OTEL_LOGS_EXPORTER=none
+    depends_on:
+      - db
+      - xray-daemon
+    restart: on-failure
+
+  frontend:
+    image: nginx:alpine
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - trade_service
+      - portfolio_service
