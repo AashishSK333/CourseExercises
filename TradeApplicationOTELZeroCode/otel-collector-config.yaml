@@ -26,17 +26,12 @@ exporters:
     region: "${AWS_REGION}"
     local_mode: true
     endpoint: "http://xray-daemon:2000"
-    # Remove the invalid keys (aws_log_level, tracing_sdk_version)
     
   logging:
     verbosity: detailed
-  
-  awscloudwatchlogs:
-    region: "${AWS_REGION}"
-    log_group_name: "/trading-app/services"
-    log_stream_name: "otel-collector"
     
-  # Add prometheus exporter for metrics
+  # Remove the awscloudwatchlogs exporter which is causing authentication issues
+  
   prometheus:
     endpoint: "0.0.0.0:8889"
 
@@ -46,13 +41,13 @@ service:
       receivers: [otlp]
       processors: [batch, resource]
       exporters: [awsxray, logging]
-    
+      
+    # Update logs pipeline to use only logging exporter
     logs:
       receivers: [otlp]
       processors: [batch, resource]
-      exporters: [awscloudwatchlogs, logging]
-      
-    # Add metrics pipeline
+      exporters: [logging]
+    
     metrics:
       receivers: [otlp]
       processors: [batch, resource]

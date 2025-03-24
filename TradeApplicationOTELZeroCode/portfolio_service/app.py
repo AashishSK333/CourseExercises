@@ -1,41 +1,34 @@
 import os
-import boto3
+import logging
 from flask import Flask, request, jsonify
 from flask_restful import Api
 from flask_cors import CORS
 from models import Trade, db
-import logging
-import watchtower
-from aws_xray_sdk.core import xray_recorder
+from aws_xray_sdk.core import xray_recorder, patch_all
 from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+
+# Initialize X-Ray with proper daemon address
+xray_recorder.configure(
+    service='portfolio-service',
+    daemon_address='xray-daemon:2000',
+    context_missing='LOG_ERROR',
+    sampling=True
+)
+patch_all()  # Patch all supported libraries for X-Ray tracing
 
 # Initialize Flask app
 app = Flask(__name__)
 
-# Configure X-Ray recorder
-xray_recorder.configure(
-    service='your-service-name',
-    daemon_address='xray-daemon:2000',
-    sampling=True,
-    context_missing='LOG_ERROR'
+# Set up basic logging instead of CloudWatch
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s'
 )
+app.logger.setLevel(logging.INFO)
+app.logger.info("Portfolio service starting up")
 
 # Apply X-Ray middleware to your Flask app
 XRayMiddleware(app, xray_recorder)
-
-# Configure CloudWatch logging
-if 'LOG_GROUP_NAME' in os.environ:
-    region = os.environ.get('AWS_REGION', 'ap-southeast-1')
-    logs_client = boto3.client('logs', region_name=region)
-    
-    handler = watchtower.CloudWatchLogHandler(
-        log_group_name=os.environ.get('LOG_GROUP_NAME', '/trading-app/portfolio-service'),
-        boto3_client=logs_client
-    )
-    
-    app.logger.addHandler(handler)
-    app.logger.setLevel(logging.INFO)
-    app.logger.info(f"CloudWatch logging configured for portfolio-service")
 
 # Configure database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://user:password@db/trades'
@@ -44,11 +37,20 @@ db.init_app(app)
 api = Api(app)
 CORS(app)
 
-# Portfolio endpoint
+# Create tables if they don't exist
+with app.app_context():
+    db.create_all()
+
 @app.route('/portfolio/<int:trader_id>', methods=['GET'])
 def get_portfolio(trader_id):
+    # Create a segment for this request
+    segment = xray_recorder.begin_segment('portfolio-handler')
+    subsegment = xray_recorder.begin_subsegment('calculate-portfolio')
+    
     try:
-        # Debug log
+        # Add annotation for filtering in X-Ray
+        xray_recorder.put_annotation('trader_id', trader_id)
+        
         app.logger.info(f"Portfolio requested for trader_id: {trader_id}")
         
         # Query all trades for this trader from the database
@@ -95,21 +97,22 @@ def get_portfolio(trader_id):
         app.logger.info(f"Calculated positions: {position_list}")
         app.logger.info(f"Total value: {total_value}")
         
-        # Format response and explicitly specify content type
+        # Return portfolio data
         response = jsonify({
             "trader_id": trader_id,
             "positions": position_list,
             "total_value": total_value
         })
-        response.headers["Content-Type"] = "application/json"
+        
         return response
         
     except Exception as e:
-        error_msg = f"Error calculating portfolio: {str(e)}"
-        app.logger.error(error_msg, exc_info=True)
-        return jsonify({"error": error_msg}), 500
+        app.logger.error(f"Error calculating portfolio: {str(e)}")
+        xray_recorder.add_exception(e)
+        return jsonify({"error": str(e)}), 500
+    finally:
+        xray_recorder.end_subsegment()
+        xray_recorder.end_segment()
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=5002)
